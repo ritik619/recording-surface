@@ -1,17 +1,22 @@
 package com.yoyo.multigltfpoc
 
 
+import android.media.MediaRecorder
+import android.os.Environment
 import android.util.Log
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.SurfaceView
 import android.view.TextureView
+import androidx.annotation.Nullable
 import com.google.android.filament.*
 import com.google.android.filament.android.DisplayHelper
 import com.google.android.filament.android.UiHelper
 import com.google.android.filament.gltfio.*
 import com.google.android.filament.utils.*
 import kotlinx.coroutines.*
+import java.io.File
+import java.io.IOException
 import java.nio.Buffer
 
 
@@ -52,7 +57,7 @@ class NewModelViewer(
 ) : android.view.View.OnTouchListener {
     var assetForModel: FilamentAsset? = null
         private set
-
+    var isRecording=false
     var assetForRoom: FilamentAsset? = null
         private set
 
@@ -96,16 +101,23 @@ class NewModelViewer(
     private var fetchResourcesJobForRoom: Job? = null
 
     private var swapChain: SwapChain? = null
+    private var destSwapChain:SwapChain?=null
+
     private var assetLoaderForModel: AssetLoader
     private var assetLoaderForRoom: AssetLoader
     private var materialProvider: MaterialProvider
     private var resourceLoaderForModel: ResourceLoader
     private var resourceLoaderForRoom: ResourceLoader
     private val readyRenderables = IntArray(128) // add up to 128 entities at a time
-
+    private var count=0
     private val eyePos = DoubleArray(3)
     private val target = DoubleArray(3)
     private val upward = DoubleArray(3)
+    private val mirrors: MutableList<Mirror> = mutableListOf()
+    private var mediaRecorder:MediaRecorder?=null
+    private var videoDirectory: File? = null
+    private var videoBaseName: String? = null
+    private var videoPath: File? = null
 
     init {
         renderer = engine.createRenderer()
@@ -289,20 +301,122 @@ class NewModelViewer(
         assetForModel?.let { populateScene(it) }
         assetForRoom?.let { populateScene(it) }
         // Extract the camera basis from the helper and push it to the Filament camera.
-        cameraManipulatorForModel.getLookAt(eyePos, target, upward)
+        cameraManipulatorForModel.getLookAt(doubleArrayOf(0.0,6.0,-5.0), target, upward)
 /*        camera.lookAt(
             eyePos[0],eyePos[1],hipsMovement[14] - deltaz,
             hipsMovement[12], hipsMovement[13] , hipsMovement[14] ,
             upward[0], upward[1], upward[2]
         )*/
-
         // Render the scene, unless the renderer wants to skip the frame.
         if (renderer.beginFrame(swapChain!!, frameTimeNanos)) {
             renderer.render(view)
             renderer.endFrame()
         }
+//        if(isRecording ==true) {
+//            renderer.copyFrame(
+//                destSwapChain,
+//                view.viewport,
+//                view.viewport,
+//                Renderer.MIRROR_FRAME_FLAG_CLEAR
+//            )
+//        }
+        if(count==200 && mediaRecorder!=null){
+            mediaRecorder = MediaRecorder()
+            setUpMediaRecorder()
+            // Set up Surface for the MediaRecorder
+            Log.i("start","1")
+            val encoderSurface = mediaRecorder!!.surface
+            Log.i("start","2")
+            startMirroringToSurface(encoderSurface)
+        }
+        count+=1
+        synchronized(mirrors) {
+            val mirrorIterator: MutableIterator<*> =
+                mirrors.iterator()
+            while (mirrorIterator.hasNext()) {
+                val mirror: Mirror =
+                    mirrorIterator.next() as Mirror
+                if (mirror.surface == null) {
+                    if (mirror.swapChain != null) {
+                        engine.destroySwapChain(mirror.swapChain as SwapChain)
+                    }
+                    mirrorIterator.remove()
+                } else if (mirror.swapChain == null) {
+                    mirror.swapChain =
+                        engine.createSwapChain(mirror.surface as Surface)
+                }
+            }
+        }
+        if(mirrors.size>1) {
+            destSwapChain = engine.createSwapChain(mirrors[0].surface as Surface)
+            Log.i("Tag", mirrors.size.toString())
+            renderer.copyFrame(
+                destSwapChain!!,
+                view.viewport,
+                view.viewport,
+                Renderer.MIRROR_FRAME_FLAG_CLEAR
+            )
+            if (count == 2000) {
+
+                mediaRecorder!!.stop()
+            }
+        }
+
     }
 
+    fun startMirroringToSurface( sur: Surface) {
+        if (this.renderer != null) {
+//            this.renderer.startMirroring(var1, var2, var3, var4, var5);
+        }
+        val mirror = Mirror()
+        mirror.surface = sur
+        mirror.viewport = view.viewport
+        mirror.swapChain = null
+        synchronized(this.mirrors) { this.mirrors.add(mirror) }
+        isRecording=true
+    }
+
+    @Throws(IOException::class)
+    private fun setUpMediaRecorder() {
+        mediaRecorder!!.setVideoSource(MediaRecorder.VideoSource.SURFACE)
+        mediaRecorder!!.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+        mediaRecorder!!.setOutputFile(videoPath?.getAbsolutePath() ?: "")
+        mediaRecorder!!.setVideoEncodingBitRate(120000)
+        mediaRecorder!!.setVideoFrameRate(30)
+        mediaRecorder!!.setVideoSize(480,480)
+        mediaRecorder!!.setVideoEncoder(MediaRecorder.VideoEncoder.MPEG_4_SP)
+        mediaRecorder!!.prepare()
+        try {
+            mediaRecorder!!.start()
+        } catch (e: IllegalStateException) {
+            Log.e(
+                "com.yoyo...TAG",
+                "Exception starting capture: " + e.message,
+                e
+            )
+        }
+    }
+
+    private fun buildFilename() {
+        if (videoDirectory == null) {
+            videoDirectory = File(
+                Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DCIM
+                ).toString()
+            )
+        }
+        if (videoBaseName == null || videoBaseName!!.isEmpty()) {
+            videoBaseName = "Sample"
+        }
+        videoPath = File(
+            videoDirectory,
+            videoBaseName + java.lang.Long.toHexString(System.currentTimeMillis()) + ".mp4"
+        )
+        val dir: File = videoPath!!.getParentFile()
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+    }
     private fun populateScene(asset: FilamentAsset) {
         val rcm = engine.renderableManager
         var count = 0
@@ -342,6 +456,7 @@ class NewModelViewer(
 
     @SuppressWarnings("ClickableViewAccessibility")
     override fun onTouch(view: android.view.View, event: MotionEvent): Boolean {
+//        Log.i("log","${event.}")
         gestureDetector.onTouchEvent(event)
         return true
     }
@@ -391,6 +506,7 @@ class NewModelViewer(
         override fun onNativeWindowChanged(surface: Surface) {
             swapChain?.let { engine.destroySwapChain(it) }
             swapChain = engine.createSwapChain(surface)
+            destSwapChain = engine.createSwapChain(surface)
             surfaceView?.let { displayHelper.attach(renderer, it.display) }
             textureView?.let { displayHelper.attach(renderer, it.display) }
         }
@@ -401,6 +517,13 @@ class NewModelViewer(
                 engine.destroySwapChain(it)
                 engine.flushAndWait()
                 swapChain = null
+            }
+            destSwapChain.let {
+                if (it != null) {
+                    engine.destroySwapChain(it)
+                }
+                engine.flushAndWait()
+                destSwapChain=null
             }
         }
 
@@ -416,7 +539,17 @@ class NewModelViewer(
     companion object {
         private val kDefaultObjectPositionForModel = Float3(0.0f, 1f, -6.0f)
         private val kDefaultObjectPositionForRoom = Float3(0.0f, 4.9f, -2f)
-        private val kCameraDefaultPos = Float3(0.0F, 0.2F,1F)
+        private val kCameraDefaultPos = Float3(0.0F, 4F,1F)
         private val deltaz = kDefaultObjectPositionForModel[2] - kCameraDefaultPos[2]
     }
+
+    private class Mirror public constructor() {
+        @Nullable
+        var swapChain: SwapChain? = null
+
+        @Nullable
+        var surface: Surface? = null
+        var viewport: Viewport? = null
+    }
+
 }

@@ -320,8 +320,10 @@ class NewModelViewer(
 //                Renderer.MIRROR_FRAME_FLAG_CLEAR
 //            )
 //        }
-        if(count==200 && mediaRecorder!=null){
+        Log.i("start","He,llo $count ${mirrors.size}")
+        if(count==200 && mediaRecorder==null){
             mediaRecorder = MediaRecorder()
+            buildFilename()
             setUpMediaRecorder()
             // Set up Surface for the MediaRecorder
             Log.i("start","1")
@@ -356,10 +358,10 @@ class NewModelViewer(
                 view.viewport,
                 Renderer.MIRROR_FRAME_FLAG_CLEAR
             )
-            if (count == 2000) {
-
-                mediaRecorder!!.stop()
-            }
+        }
+        if (count == 2000) {
+            Log.i("stop","stop")
+            mediaRecorder!!.stop()
         }
 
     }
@@ -373,20 +375,35 @@ class NewModelViewer(
         mirror.viewport = view.viewport
         mirror.swapChain = null
         synchronized(this.mirrors) { this.mirrors.add(mirror) }
+        Log.i("start","${this.mirrors.size}")
         isRecording=true
     }
 
     @Throws(IOException::class)
     private fun setUpMediaRecorder() {
+
+//    String fileName = "Flam_" + "${System.currentTimeMillis()}.mp4";
+//    Path videoFile = Environment.getExternalStoragePublicDirectory(
+//            Environment.DIRECTORY_DCIM
+//    ).toString() + File.separator + fileName;
+//    videoFile =
+//            new File(
+//                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+//                            + "/Sceneform");
+//    File file = File(videoFile)
+        val fileMp = File(
+            Environment.getExternalStorageDirectory()
+                .toString() + "/Download/" + File.separator + "test3.mp4"
+        )
         mediaRecorder!!.setVideoSource(MediaRecorder.VideoSource.SURFACE)
         mediaRecorder!!.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-        mediaRecorder!!.setOutputFile(videoPath?.getAbsolutePath() ?: "")
+        mediaRecorder!!.setOutputFile(videoPath!!.absolutePath)
         mediaRecorder!!.setVideoEncodingBitRate(120000)
         mediaRecorder!!.setVideoFrameRate(30)
         mediaRecorder!!.setVideoSize(480,480)
-        mediaRecorder!!.setVideoEncoder(MediaRecorder.VideoEncoder.MPEG_4_SP)
-        mediaRecorder!!.prepare()
+        mediaRecorder!!.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
         try {
+            mediaRecorder!!.prepare()
             mediaRecorder!!.start()
         } catch (e: IllegalStateException) {
             Log.e(

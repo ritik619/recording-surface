@@ -118,6 +118,7 @@ class NewModelViewer(
     private var videoDirectory: File? = null
     private var videoBaseName: String? = null
     private var videoPath: File? = null
+    private var surfaceMirrorer:SurfaceMirrorer?=null
 
     init {
         renderer = engine.createRenderer()
@@ -131,6 +132,7 @@ class NewModelViewer(
         materialProvider = UbershaderProvider(engine)
         assetLoaderForModel = AssetLoader(engine, materialProvider, EntityManager.get())
         assetLoaderForRoom = AssetLoader(engine,materialProvider,EntityManager.get())
+        surfaceMirrorer = SurfaceMirrorer(engine, view, renderer)
 
         resourceLoaderForModel = ResourceLoader(engine, normalizeSkinningWeights)
         resourceLoaderForRoom = ResourceLoader(engine, normalizeSkinningWeights)
@@ -310,8 +312,10 @@ class NewModelViewer(
         // Render the scene, unless the renderer wants to skip the frame.
         if (renderer.beginFrame(swapChain!!, frameTimeNanos)) {
             renderer.render(view)
+            surfaceMirrorer!!.onFrame()
             renderer.endFrame()
         }
+
 //        if(isRecording ==true) {
 //            renderer.copyFrame(
 //                destSwapChain,
@@ -320,49 +324,61 @@ class NewModelViewer(
 //                Renderer.MIRROR_FRAME_FLAG_CLEAR
 //            )
 //        }
+        count+=1
         Log.i("start","He,llo $count ${mirrors.size}")
-        if(count==200 && mediaRecorder==null){
-            mediaRecorder = MediaRecorder()
+        if(count==200){
+            mediaRecorder= MediaRecorder()
             buildFilename()
             setUpMediaRecorder()
-            // Set up Surface for the MediaRecorder
-            Log.i("start","1")
-            val encoderSurface = mediaRecorder!!.surface
-            Log.i("start","2")
-            startMirroringToSurface(encoderSurface)
+            surfaceMirrorer!!.startMirroring(mediaRecorder!!.surface,0,0,view.viewport.width,view.viewport.height)
         }
-        count+=1
-        synchronized(mirrors) {
-            val mirrorIterator: MutableIterator<*> =
-                mirrors.iterator()
-            while (mirrorIterator.hasNext()) {
-                val mirror: Mirror =
-                    mirrorIterator.next() as Mirror
-                if (mirror.surface == null) {
-                    if (mirror.swapChain != null) {
-                        engine.destroySwapChain(mirror.swapChain as SwapChain)
-                    }
-                    mirrorIterator.remove()
-                } else if (mirror.swapChain == null) {
-                    mirror.swapChain =
-                        engine.createSwapChain(mirror.surface as Surface)
-                }
-            }
-        }
-        if(mirrors.size>1) {
-            destSwapChain = engine.createSwapChain(mirrors[0].surface as Surface)
-            Log.i("Tag", mirrors.size.toString())
-            renderer.copyFrame(
-                destSwapChain!!,
-                view.viewport,
-                view.viewport,
-                Renderer.MIRROR_FRAME_FLAG_CLEAR
-            )
-        }
-        if (count == 2000) {
-            Log.i("stop","stop")
+        if(count==2000){
+            surfaceMirrorer!!.stopMirroring(mediaRecorder!!.surface)
             mediaRecorder!!.stop()
+
         }
+//        if(count==200 && mediaRecorder==null){
+//            mediaRecorder = MediaRecorder()
+//            buildFilename()
+//            setUpMediaRecorder()
+//            // Set up Surface for the MediaRecorder
+//            Log.i("start","1")
+//            val encoderSurface = mediaRecorder!!.surface
+//            Log.i("start","2")
+//            startMirroringToSurface(encoderSurface)
+//        }
+//        count+=1
+//        synchronized(mirrors) {
+//            val mirrorIterator: MutableIterator<*> =
+//                mirrors.iterator()
+//            while (mirrorIterator.hasNext()) {
+//                val mirror: Mirror =
+//                    mirrorIterator.next() as Mirror
+//                if (mirror.surface == null) {
+//                    if (mirror.swapChain != null) {
+//                        engine.destroySwapChain(mirror.swapChain as SwapChain)
+//                    }
+//                    mirrorIterator.remove()
+//                } else if (mirror.swapChain == null) {
+//                    mirror.swapChain =
+//                        engine.createSwapChain(mirror.surface as Surface)
+//                }
+//            }
+//        }
+//        if(mirrors.size>1) {
+//            destSwapChain = engine.createSwapChain(mirrors[0].surface as Surface)
+//            Log.i("Tag", mirrors.size.toString())
+//            renderer.copyFrame(
+//                destSwapChain!!,
+//                view.viewport,
+//                view.viewport,
+//                Renderer.MIRROR_FRAME_FLAG_CLEAR
+//            )
+//        }
+//        if (count == 2000) {
+//            Log.i("stop","stop")
+//            mediaRecorder!!.stop()
+//        }
 
     }
 

@@ -327,6 +327,7 @@ class NewModelViewer(
         count+=1
         Log.i("start","He,llo $count ${mirrors.size}")
         if(count==200){
+            isRecording=true
             mediaRecorder= MediaRecorder()
             buildFilename()
             setUpMediaRecorder()
@@ -335,50 +336,9 @@ class NewModelViewer(
         if(count==2000){
             surfaceMirrorer!!.stopMirroring(mediaRecorder!!.surface)
             mediaRecorder!!.stop()
+            isRecording=false
 
         }
-//        if(count==200 && mediaRecorder==null){
-//            mediaRecorder = MediaRecorder()
-//            buildFilename()
-//            setUpMediaRecorder()
-//            // Set up Surface for the MediaRecorder
-//            Log.i("start","1")
-//            val encoderSurface = mediaRecorder!!.surface
-//            Log.i("start","2")
-//            startMirroringToSurface(encoderSurface)
-//        }
-//        count+=1
-//        synchronized(mirrors) {
-//            val mirrorIterator: MutableIterator<*> =
-//                mirrors.iterator()
-//            while (mirrorIterator.hasNext()) {
-//                val mirror: Mirror =
-//                    mirrorIterator.next() as Mirror
-//                if (mirror.surface == null) {
-//                    if (mirror.swapChain != null) {
-//                        engine.destroySwapChain(mirror.swapChain as SwapChain)
-//                    }
-//                    mirrorIterator.remove()
-//                } else if (mirror.swapChain == null) {
-//                    mirror.swapChain =
-//                        engine.createSwapChain(mirror.surface as Surface)
-//                }
-//            }
-//        }
-//        if(mirrors.size>1) {
-//            destSwapChain = engine.createSwapChain(mirrors[0].surface as Surface)
-//            Log.i("Tag", mirrors.size.toString())
-//            renderer.copyFrame(
-//                destSwapChain!!,
-//                view.viewport,
-//                view.viewport,
-//                Renderer.MIRROR_FRAME_FLAG_CLEAR
-//            )
-//        }
-//        if (count == 2000) {
-//            Log.i("stop","stop")
-//            mediaRecorder!!.stop()
-//        }
 
     }
 
@@ -407,17 +367,17 @@ class NewModelViewer(
 //                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
 //                            + "/Sceneform");
 //    File file = File(videoFile)
+
         val fileMp = File(
             Environment.getExternalStorageDirectory()
                 .toString() + "/Download/" + File.separator + "test3.mp4"
         )
         mediaRecorder!!.setVideoSource(MediaRecorder.VideoSource.SURFACE)
         mediaRecorder!!.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-        mediaRecorder!!.setOutputFile(videoPath!!.absolutePath)
+        mediaRecorder!!.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+        mediaRecorder!!.setOutputFile(fileMp.absolutePath)
         mediaRecorder!!.setVideoEncodingBitRate(120000)
         mediaRecorder!!.setVideoFrameRate(30)
-        mediaRecorder!!.setVideoSize(480,480)
-        mediaRecorder!!.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
         try {
             mediaRecorder!!.prepare()
             mediaRecorder!!.start()

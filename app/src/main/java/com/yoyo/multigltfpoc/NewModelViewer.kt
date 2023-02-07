@@ -80,7 +80,7 @@ class NewModelViewer(
 
     var normalizeSkinningWeights = true
 
-    var cameraFocalLength = 28f
+    var cameraFocalLength = 24f
         set(value) {
             field = value
             updateCameraProjection()
@@ -88,6 +88,7 @@ class NewModelViewer(
 
     val scene: Scene
     val view: View
+
     val camera: Camera
     val renderer: Renderer
     private lateinit var gestureDetector: ModelGestureDetector
@@ -132,7 +133,32 @@ class NewModelViewer(
         view = engine.createView()
         view.scene = scene
         view.camera = camera
+        view.renderQuality = view.renderQuality.apply {
 
+            hdrColorBuffer = View.QualityLevel.ULTRA
+        }
+        view.dynamicResolutionOptions = view.dynamicResolutionOptions.apply {
+            enabled = true
+            quality = View.QualityLevel.ULTRA
+        }
+        view.multiSampleAntiAliasingOptions = view.multiSampleAntiAliasingOptions.apply {
+            enabled = true
+        }
+
+
+        // FXAA is pretty cheap and helps a lot
+        view.antiAliasing = View.AntiAliasing.FXAA
+
+        // ambient occlusion is the cheapest effect tht adds a lot of qualitya
+        view.ambientOcclusionOptions = view.ambientOcclusionOptions.apply {
+            enabled = true
+            quality=View.QualityLevel.HIGH
+        }
+        // bloom is pretty expensive but adds a fair amount of realism
+        view.bloomOptions = view.bloomOptions.apply {
+            enabled = true
+
+        }
         materialProvider = UbershaderProvider(engine)
         assetLoaderForModel = AssetLoader(engine, materialProvider, EntityManager.get())
         assetLoaderForRoom = AssetLoader(engine,materialProvider,EntityManager.get())
@@ -308,11 +334,11 @@ class NewModelViewer(
         assetForRoom?.let { populateScene(it) }
         // Extract the camera basis from the helper and push it to the Filament camera.
         cameraManipulatorForModel.getLookAt(doubleArrayOf(0.0,6.0,-5.0), target, upward)
-/*        camera.lookAt(
-            eyePos[0],eyePos[1],hipsMovement[14] - deltaz,
-            hipsMovement[12], hipsMovement[13] , hipsMovement[14] ,
-            upward[0], upward[1], upward[2]
-        )*/
+//        camera.lookAt(
+//            eyePos[0],eyePos[1],hipsMovement[14] - deltaz,
+//            hipsMovement[12], hipsMovement[13] , hipsMovement[14] ,
+//            upward[0], upward[1], upward[2]
+//        )
         // Render the scene, unless the renderer wants to skip the frame.
         if (renderer.beginFrame(swapChain!!, frameTimeNanos)) {
             renderer.render(view)
@@ -330,14 +356,14 @@ class NewModelViewer(
 //        }
         count+=1
         Log.i("start","He,llo $count ${mirrors.size}")
-        if(count==200){
+        if(count==150){
             isRecording=true
             mediaRecorder= MediaRecorder()
             buildFilename()
             setUpMediaRecorder()
-            surfaceMirrorer!!.startMirroring(mediaRecorder!!.surface,0,0,view.viewport.width,view.viewport.height)
+            surfaceMirrorer!!.startMirroring(mediaRecorder!!.surface,0,0,1080,1920)
         }
-        if(count==1000){
+        if(count==600){
             surfaceMirrorer!!.stopMirroring(mediaRecorder!!.surface)
             mediaRecorder!!.stop()
             isRecording=false
@@ -363,11 +389,12 @@ class NewModelViewer(
     private fun setUpMediaRecorder() {
         mediaRecorder!!.setVideoSource(MediaRecorder.VideoSource.SURFACE)
         mediaRecorder!!.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-        mediaRecorder!!.setVideoSize(surfaceView!!.width,surfaceView!!.height)
         mediaRecorder!!.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
         mediaRecorder!!.setOutputFile(file!!.absolutePath)
-        mediaRecorder!!.setVideoEncodingBitRate(120000)
-        mediaRecorder!!.setVideoFrameRate(30)
+        Log.i("SIZE","${surfaceView!!.width-surfaceView!!.width%16},${surfaceView!!.height-surfaceView!!.height%16}")
+        mediaRecorder!!.setVideoSize(1080,1920)
+        mediaRecorder!!.setVideoEncodingBitRate(320000)
+        mediaRecorder!!.setVideoFrameRate(60)
         try {
             mediaRecorder!!.prepare()
             mediaRecorder!!.start()

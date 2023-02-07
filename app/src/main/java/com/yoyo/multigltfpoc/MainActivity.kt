@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
 
         surfaceView.setOnTouchListener(modelViewer)
         setUpRenderSettings()
-        loadGlb("mbap.glb","room.glb")
+        loadGlb("mbapOld.glb","room.glb")
         createNeutralIndirectLight()
         test()
 

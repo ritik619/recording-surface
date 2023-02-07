@@ -2,19 +2,21 @@ package com.yoyo.multigltfpoc
 
 import android.annotation.SuppressLint
 import android.graphics.*
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.util.Log
 import android.view.*
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.filament.*
-import com.google.android.filament.VertexBuffer.VertexAttribute
 import com.google.android.filament.android.TextureHelper
 import com.google.android.filament.utils.*
 import java.nio.ByteBuffer
 import com.google.android.filament.filamat.MaterialBuilder
-
-import java.nio.FloatBuffer
+import java.io.File
+import java.io.IOException
+import java.util.*
 
 
 class MainActivity : AppCompatActivity() {
@@ -37,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var material: Material
     private var materialInstance: MaterialInstance?=null
     private val textures = arrayOfNulls<Texture>(2)
+    private  var file: File? = null
 
 
 
@@ -46,9 +49,10 @@ class MainActivity : AppCompatActivity() {
         System.gc()
 
         surfaceView = SurfaceView(this).apply { setContentView(this) }
-
+        PermissionHelper.hasPermissions(this)
+        file = createVideoOutputFile()
         choreographer = Choreographer.getInstance()
-        modelViewer = NewModelViewer(surfaceView)
+        modelViewer = NewModelViewer(surfaceView, file)
         makeTransparentBackground()
         surfaceView.setOnTouchListener { _, event ->
             onTouchEvent(event)
@@ -60,30 +64,6 @@ class MainActivity : AppCompatActivity() {
         loadGlb("mbap.glb","room.glb")
         createNeutralIndirectLight()
         test()
-//        textures[0] = loadTexture(modelViewer.engine, R.drawable.dog)
-//        textures[1] = loadTexture(modelViewer.engine, R.drawable.cat)
-//        setTextures(textures[0]!!, textures[1]!!)
-//        addTexture()
-//        modelViewer.assetForRoom!!.entities.forEach {
-//            val a=it
-//            materialInstance?.let {
-//            modelViewer.assetForModel!!.engine.renderableManager.setMaterialInstanceAt(a,0,
-//                it
-//            )
-//        }
-//        }
-
-//
-//        materialInstance?.let {
-//            modelViewer.assetForModel!!.engine.renderableManager.setMaterialInstanceAt(204,0,
-//                it
-//            )
-//        }
-//        materialInstance?.let {
-//            modelViewer.assetForModel!!.engine.renderableManager.setMaterialInstanceAt(203,0,
-//                it
-//            )
-//        }
 
     }
     private fun readCompressedAsset(assetName: String): ByteBuffer {
@@ -93,60 +73,7 @@ class MainActivity : AppCompatActivity() {
         return ByteBuffer.wrap(bytes)
     }
 
-    private fun addTexture(){
-//        val numColumns: Int = mMeshResolution.get(0)
-//        val numRows: Int = mMeshResolution.get(1)
-        val numColumns = 20
-        val numRows = 20
-        val numCells = numColumns * numRows
-        val numIndices = numCells * 6
-        val numVertices = (numColumns + 1) * (numRows + 1)
-        val uvs = FloatBuffer.allocate(numVertices * 2)
-        var vertexBuffer = VertexBuffer.Builder()
-            .bufferCount(3)
-            .vertexCount(numVertices)
-            .attribute(VertexAttribute.POSITION, 0, VertexBuffer.AttributeType.FLOAT3)
-            .attribute(VertexAttribute.UV0, 1, VertexBuffer.AttributeType.FLOAT2)
-            .attribute(VertexAttribute.TANGENTS, 2, VertexBuffer.AttributeType.FLOAT4)
-            .build(modelViewer.engine)
-        var indexBuffer = IndexBuffer.Builder()
-            .indexCount(numIndices)
-            .bufferType(IndexBuffer.Builder.IndexType.USHORT)
-            .build(modelViewer.engine)
-        for (row in 0..numRows) {
-            for (col in 0..numColumns) {
-                uvs.put(col.toFloat() / numColumns)
-                uvs.put(row.toFloat() / numRows)
-            }
-        }
 
-        uvs.flip()
-
-        vertexBuffer.setBufferAt(modelViewer.engine, 1, uvs)
-        val renderable = EntityManager.get().create()
-
-        materialInstance?.let {
-            RenderableManager.Builder(1)
-                .culling(false)
-                .material(0, it)
-                .geometry(
-                    0,
-                    RenderableManager.PrimitiveType.TRIANGLES,
-                    vertexBuffer,
-                    indexBuffer
-                )
-                .castShadows(false)
-                .receiveShadows(false)
-                .build(modelViewer.engine, renderable)
-        }
-        
-    }
-    
-    private fun setTextures(textureA: Texture, textureB: Texture) {
-        val sampler = TextureSampler()
-        materialInstance?.setParameter("name1", textureA, sampler)
-        materialInstance?.setParameter("name2", textureB, sampler)
-    }
     
     
     private fun makeTransparentBackground() {
@@ -363,6 +290,15 @@ class MainActivity : AppCompatActivity() {
         canvas.drawColor(Color.WHITE)
         canvas.drawBitmap(bmp, borderSize.toFloat(), borderSize.toFloat(), null)
         return modified
+    }
+
+    private fun createVideoOutputFile(): File? {
+        val fileName = "Flam_New" + "${System.currentTimeMillis()}.mp4"
+        val videoFile = Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_DCIM
+        ).toString() + File.separator + fileName
+        val file = File(videoFile)
+        return file
     }
 
 }

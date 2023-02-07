@@ -2,6 +2,7 @@ package com.yoyo.multigltfpoc
 
 
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.Environment
 import android.util.Log
 import android.view.MotionEvent
@@ -18,6 +19,8 @@ import kotlinx.coroutines.*
 import java.io.File
 import java.io.IOException
 import java.nio.Buffer
+import java.util.*
+import kotlin.collections.HashMap
 
 
 private const val kNearPlane = 0.05     // 5 cm
@@ -119,6 +122,7 @@ class NewModelViewer(
     private var videoBaseName: String? = null
     private var videoPath: File? = null
     private var surfaceMirrorer:SurfaceMirrorer?=null
+    private var file: File? = null
 
     init {
         renderer = engine.createRenderer()
@@ -154,6 +158,7 @@ class NewModelViewer(
 
     constructor(
         surfaceView: SurfaceView,
+        file: File?,
         engine: Engine = Engine.create(),
         uiHelper: UiHelper = UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK),
         manipulator: Manipulator? = null
@@ -168,8 +173,7 @@ class NewModelViewer(
             .viewport(surfaceView.width, surfaceView.height)
             .build(Manipulator.Mode.ORBIT)
 
-        Log.d("Hello","Heloo")
-
+        this.file = file
         gestureDetector = ModelGestureDetector(surfaceView, cameraManipulatorForModel)
         this.surfaceView = surfaceView
         displayHelper = DisplayHelper(surfaceView.context)
@@ -333,7 +337,7 @@ class NewModelViewer(
             setUpMediaRecorder()
             surfaceMirrorer!!.startMirroring(mediaRecorder!!.surface,0,0,view.viewport.width,view.viewport.height)
         }
-        if(count==2000){
+        if(count==1000){
             surfaceMirrorer!!.stopMirroring(mediaRecorder!!.surface)
             mediaRecorder!!.stop()
             isRecording=false
@@ -357,25 +361,11 @@ class NewModelViewer(
 
     @Throws(IOException::class)
     private fun setUpMediaRecorder() {
-
-//    String fileName = "Flam_" + "${System.currentTimeMillis()}.mp4";
-//    Path videoFile = Environment.getExternalStoragePublicDirectory(
-//            Environment.DIRECTORY_DCIM
-//    ).toString() + File.separator + fileName;
-//    videoFile =
-//            new File(
-//                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-//                            + "/Sceneform");
-//    File file = File(videoFile)
-
-        val fileMp = File(
-            Environment.getExternalStorageDirectory()
-                .toString() + "/Download/" + File.separator + "test3.mp4"
-        )
         mediaRecorder!!.setVideoSource(MediaRecorder.VideoSource.SURFACE)
         mediaRecorder!!.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+        mediaRecorder!!.setVideoSize(surfaceView!!.width,surfaceView!!.height)
         mediaRecorder!!.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-        mediaRecorder!!.setOutputFile(fileMp.absolutePath)
+        mediaRecorder!!.setOutputFile(file!!.absolutePath)
         mediaRecorder!!.setVideoEncodingBitRate(120000)
         mediaRecorder!!.setVideoFrameRate(30)
         try {
@@ -544,5 +534,7 @@ class NewModelViewer(
         var surface: Surface? = null
         var viewport: Viewport? = null
     }
+
+
 
 }
